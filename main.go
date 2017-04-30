@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	_ "github.com/mattn/go-sqlite3"
@@ -19,12 +20,12 @@ func main() {
 func run() error {
 	databaseFileName := os.Getenv("DB")
 	if databaseFileName == "" {
-		return fmt.Errorf("Did not find database file name $DB\n")
+		return fmt.Errorf("Did not find database file name $DB")
 	}
 
 	APIToken := os.Getenv("APITOKEN")
 	if APIToken == "" {
-		return fmt.Errorf("Did not find telegram API token $APITOKEN\n")
+		return fmt.Errorf("Did not find telegram API token $APITOKEN")
 	}
 
 	var st Store = NewSQLStore(databaseFileName)
@@ -32,7 +33,7 @@ func run() error {
 
 	bot, err := tgbotapi.NewBotAPI(APIToken)
 	if err != nil {
-		return fmt.Errorf("could not start bot: %v\n", err)
+		return fmt.Errorf("could not start bot: %v", err)
 	}
 
 	// bot.Debug = true
@@ -62,6 +63,19 @@ func run() error {
 				log.Printf("could not handle inline query: %v", err)
 			}
 
+			continue
+		}
+
+		// poll was inserted into a chat
+		if update.ChosenInlineResult != nil {
+			pollid, err := strconv.Atoi(update.ChosenInlineResult.ResultID)
+			if err != nil {
+				return fmt.Errorf("could not parse pollID: %v", err)
+			}
+			err = st.AddInlineMsgToPoll(pollid, update.ChosenInlineResult.InlineMessageID)
+			if err != nil {
+				return fmt.Errorf("could not add inline message to poll: %v", err)
+			}
 			continue
 		}
 

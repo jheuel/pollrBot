@@ -409,6 +409,7 @@ func (st *sqlStore) AddInlineMsgToPoll(pollid int, inlinemessageid string) error
 		err = tx.Commit()
 	}()
 
+	// InlineMessageId is the primary key
 	stmt, err := tx.Prepare("INSERT OR REPLACE INTO pollinlinemsg(PollID, InlineMessageID) values(?, ?)")
 	if err != nil {
 		return fmt.Errorf("could not build sql insert statement: %v", err)

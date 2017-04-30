@@ -17,7 +17,7 @@ func handleInlineQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) e
 	results := make([]interface{}, len(polls))
 	for i, p := range polls {
 		log.Println(p)
-		article := tgbotapi.NewInlineQueryResultArticleMarkdown(update.InlineQuery.ID+strconv.Itoa(p.ID), p.Question, buildPollListing(p, st))
+		article := tgbotapi.NewInlineQueryResultArticleMarkdown(strconv.Itoa(p.ID), p.Question, buildPollListing(p, st))
 		article.ReplyMarkup = buildPollMarkup(p)
 		article.Description = locInlineInsertPoll
 
@@ -33,11 +33,10 @@ func handleInlineQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) e
 		SwitchPMParameter: createNewPollQuery,
 	}
 
-	res, err := bot.AnswerInlineQuery(inlineConfig)
+	_, err = bot.AnswerInlineQuery(inlineConfig)
 	if err != nil {
 		return fmt.Errorf("could not answer inline query: %v", err)
 	}
-	log.Println("results: ", res.Result)
 
 	return nil
 }
