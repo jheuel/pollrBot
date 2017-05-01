@@ -137,12 +137,14 @@ func buildPollListing(p *poll, st Store) (listing string) {
 			// part = fmt.Sprintf("\n%s *%s* (%d/%d):\n ", emojify(i+1), o.Text, o.Ctr, len(p.Answers))
 		}
 
-		listing += fmt.Sprintf("\n%s *%s*%s:\n ", nr, o.Text, part)
-		for _, u := range listOfUsers[i] {
-			listing += " " + getDisplayUserName(u)
+		listing += fmt.Sprintf("\n%s *%s*%s", nr, o.Text, part)
+		if len(p.Answers) < maxNumberOfUsersListed {
+			listing += ":\n "
+			for _, u := range listOfUsers[i] {
+				listing += " " + getDisplayUserName(u)
+			}
 		}
 		listing += "\n"
-		// listing += "```\n"
 
 	}
 	return listing

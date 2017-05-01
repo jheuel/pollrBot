@@ -11,6 +11,9 @@ const (
 	pollDone
 )
 
+var maxNumberOfUsersListed = 10
+var maxPollsInlineQuery = 10
+
 var emojinumbers = map[string]string{
 	"0": "️0️⃣",
 	"1": "1️⃣",

@@ -14,6 +14,9 @@ func handleInlineQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) e
 		return fmt.Errorf("could not get polls for user: %v", err)
 	}
 
+	if len(polls) > maxPollsInlineQuery {
+		polls = polls[0 : maxPollsInlineQuery-1]
+	}
 	results := make([]interface{}, len(polls))
 	for i, p := range polls {
 		log.Println(p)
