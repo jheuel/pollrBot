@@ -21,7 +21,9 @@ func handleInlineQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) e
 	for i, p := range polls {
 		log.Println(p)
 		article := tgbotapi.NewInlineQueryResultArticleMarkdown(strconv.Itoa(p.ID), p.Question, buildPollListing(p, st))
-		article.ReplyMarkup = buildPollMarkup(p)
+		if len(p.Options) > 0 {
+			article.ReplyMarkup = buildPollMarkup(p)
+		}
 		article.Description = locInlineInsertPoll
 
 		results[i] = article
