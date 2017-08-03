@@ -141,8 +141,9 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		if len(p.Answers) < maxNumberOfUsersListed {
 			listing += ":\n "
 			for _, u := range listOfUsers[i] {
-				listing += " " + getDisplayUserName(u)
+				listing += " " + getDisplayUserName(u) + ","
 			}
+			listing = listing[:len(listing)-1]
 		}
 		listing += "\n"
 
@@ -151,17 +152,19 @@ func buildPollListing(p *poll, st Store) (listing string) {
 }
 
 func getDisplayUserName(u *tgbotapi.User) string {
-	if u.UserName != "" {
-		return fmt.Sprintf(" @%s", u.UserName)
-	}
+	//if u.UserName != "" {
+	////return fmt.Sprintf(" @%s", u.UserName)
+	//return fmt.Sprintf(" %s", u.UserName)
+	//}
 
 	if u.FirstName == "" && u.LastName == "" {
 		return strconv.Itoa(u.ID)
+	} else if u.FirstName != "" {
+		name := u.FirstName
+		if u.LastName != "" {
+			name += " " + u.LastName
+		}
+		return name
 	}
-
-	name := u.FirstName
-	if u.LastName != "" {
-		name += " " + u.LastName
-	}
-	return name
+	return u.LastName
 }

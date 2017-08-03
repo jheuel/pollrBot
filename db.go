@@ -331,6 +331,20 @@ func (st *sqlStore) SaveAnswer(a answer) error {
 
 	if len(prevOpts) > 0 {
 		// user voted before
+
+		// user clicked the same answer again
+		if prevOpts[0] == a.OptionID {
+			stmt, err = tx.Prepare("DELETE FROM answer where PollID = ? AND UserID = ?")
+			if err != nil {
+				return fmt.Errorf("could not prepare sql statement: %v", err)
+			}
+			_, err = stmt.Exec(a.PollID, a.UserID)
+			if err != nil {
+				return fmt.Errorf("could not delete previous answer: %v", err)
+			}
+			return nil
+		}
+
 		stmt, err = tx.Prepare("UPDATE answer SET OptionID = ?, LastSaved = ? WHERE UserID = ? AND PollID = ?")
 		if err != nil {
 			return fmt.Errorf("could not prepare sql statement: %v", err)
