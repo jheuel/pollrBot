@@ -34,7 +34,8 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 		PollID:   pollid,
 		OptionID: optionid,
 	}
-	if err := st.SaveAnswer(newAnswer); err != nil {
+	unvoted, err := st.SaveAnswer(newAnswer)
+	if err != nil {
 		return fmt.Errorf("could not save answers: %v", err)
 	}
 
@@ -86,10 +87,14 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 			log.Println(fmt.Errorf("could not update inline message: %v", err))
 		}
 	}
+	popupText := fmt.Sprintf(`You voted for "%s"`, choice.Text)
+	if unvoted {
+		popupText = fmt.Sprintf("Seems like you deleted your vote.")
+	}
 
 	callbackConfig := tgbotapi.NewCallback(
 		update.CallbackQuery.ID,
-		fmt.Sprintf(`You voted for "%s"`, choice.Text))
+		popupText)
 	_, err = bot.AnswerCallbackQuery(callbackConfig)
 	if err != nil {
 		return fmt.Errorf("could not send answer to callback query: %v", err)

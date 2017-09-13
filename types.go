@@ -21,7 +21,7 @@ type Store interface {
 	SaveUser(*tgbotapi.User) error
 	SavePoll(*poll) (int, error)
 	SaveOptions([]option) error
-	SaveAnswer(answer) error
+	SaveAnswer(answer) (unvoted bool, err error)
 }
 
 type answer struct {

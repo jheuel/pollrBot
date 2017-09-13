@@ -11,7 +11,7 @@ const (
 	pollDone
 )
 
-var maxNumberOfUsersListed = 10
+var maxNumberOfUsersListed = 100
 var maxPollsInlineQuery = 10
 
 var emojinumbers = map[string]string{

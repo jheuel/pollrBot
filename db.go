@@ -281,10 +281,10 @@ func (st *sqlStore) GetAnswers(pollid int) ([]answer, error) {
 	return answers, nil
 }
 
-func (st *sqlStore) SaveAnswer(a answer) error {
+func (st *sqlStore) SaveAnswer(a answer) (unvoted bool, err error) {
 	tx, err := st.db.Begin()
 	if err != nil {
-		return fmt.Errorf("could not begin database transaction: %v", err)
+		return false, fmt.Errorf("could not begin database transaction: %v", err)
 	}
 	defer func() {
 		if err != nil {
@@ -299,13 +299,13 @@ func (st *sqlStore) SaveAnswer(a answer) error {
 	// find previous votes in this poll
 	stmt, err := tx.Prepare("SELECT OptionID FROM answer WHERE PollID = ? AND UserID = ?")
 	if err != nil {
-		return fmt.Errorf("could not prepare sql statement: %v", err)
+		return false, fmt.Errorf("could not prepare sql statement: %v", err)
 	}
 	defer close(stmt)
 
 	rows, err := stmt.Query(a.PollID, a.UserID)
 	if err != nil {
-		return fmt.Errorf("could not query option rows: %v", err)
+		return false, fmt.Errorf("could not query option rows: %v", err)
 	}
 	defer close(rows)
 	var optionid int
@@ -313,7 +313,7 @@ func (st *sqlStore) SaveAnswer(a answer) error {
 	for rows.Next() {
 		err = rows.Scan(&optionid)
 		if err != nil {
-			return fmt.Errorf("could not scan optionid: %v", err)
+			return false, fmt.Errorf("could not scan optionid: %v", err)
 		}
 		prevOpts = append(prevOpts, optionid)
 	}
@@ -321,48 +321,62 @@ func (st *sqlStore) SaveAnswer(a answer) error {
 	// decrement previously selected option(s)
 	stmt, err = tx.Prepare("UPDATE option SET Ctr = Ctr - 1 WHERE ID = ? AND Ctr > 0")
 	if err != nil {
-		return fmt.Errorf("could not prepare sql statement: %v", err)
+		return false, fmt.Errorf("could not prepare sql statement: %v", err)
 	}
 	for _, o := range prevOpts {
 		if _, err = stmt.Exec(o); err != nil {
-			return fmt.Errorf("could not decrement option: %v", err)
+			return false, fmt.Errorf("could not decrement option: %v", err)
 		}
 	}
 
 	if len(prevOpts) > 0 {
 		// user voted before
+
+		// user clicked the same answer again
+		if prevOpts[0] == a.OptionID {
+			stmt, err = tx.Prepare("DELETE FROM answer where PollID = ? AND UserID = ?")
+			if err != nil {
+				return false, fmt.Errorf("could not prepare sql statement: %v", err)
+			}
+			_, err = stmt.Exec(a.PollID, a.UserID)
+			if err != nil {
+				return false, fmt.Errorf("could not delete previous answer: %v", err)
+			}
+			return true, nil
+		}
+
 		stmt, err = tx.Prepare("UPDATE answer SET OptionID = ?, LastSaved = ? WHERE UserID = ? AND PollID = ?")
 		if err != nil {
-			return fmt.Errorf("could not prepare sql statement: %v", err)
+			return false, fmt.Errorf("could not prepare sql statement: %v", err)
 		}
 		_, err = stmt.Exec(a.OptionID, time.Now().UTC().Unix(), a.UserID, a.PollID)
 		if err != nil {
-			return fmt.Errorf("could not update vote: %v", err)
+			return false, fmt.Errorf("could not update vote: %v", err)
 		}
 	} else {
 		// new vote
 		stmt, err = tx.Prepare("INSERT INTO answer(PollID, OptionID, UserID, LastSaved, CreatedAt) values(?, ?, ?, ?, ?)")
 		if err != nil {
-			return fmt.Errorf("could not prepare sql statement: %v", err)
+			return false, fmt.Errorf("could not prepare sql statement: %v", err)
 		}
 		_, err = stmt.Exec(a.PollID, a.OptionID, a.UserID, time.Now().UTC().Unix(), time.Now().UTC().Unix())
 		if err != nil {
-			return fmt.Errorf("could not insert answer: %v", err)
+			return false, fmt.Errorf("could not insert answer: %v", err)
 		}
 	}
 
 	// increment counter for option
 	stmt, err = tx.Prepare("UPDATE option set Ctr = Ctr + 1 WHERE ID = ?")
 	if err != nil {
-		return fmt.Errorf("could not prepare sql statement: %v", err)
+		return false, fmt.Errorf("could not prepare sql statement: %v", err)
 	}
 
 	_, err = stmt.Exec(a.OptionID)
 	if err != nil {
-		return fmt.Errorf("could not increment option counter: %v", err)
+		return false, fmt.Errorf("could not increment option counter: %v", err)
 	}
 
-	return nil
+	return false, nil
 }
 
 func (st *sqlStore) AddMsgToPoll(pollid int, messageid int, chatid int64) error {
