@@ -68,7 +68,21 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 
 		_, err = bot.Send(ed)
 		if err != nil {
-			return fmt.Errorf("could not update message: %v", err)
+			//log.Printf("Could not edit message: %v \nThe message was: %s\n", err, ed.Text)
+			log.Printf("Could not edit message: %v\n", err)
+			splits := strings.Split(ed.Text, "\n")
+
+			ed.Text = ""
+			for _, l := range splits {
+				if !strings.HasPrefix(l, "\u251C") && !strings.HasPrefix(l, "\u2514") {
+					ed.Text += l + "\n"
+				}
+			}
+			log.Printf("try again:\n %s", ed.Text)
+			_, err = bot.Send(ed)
+			if err != nil {
+				return fmt.Errorf("could not update message: %v", err)
+			}
 		}
 	}
 	// reset
@@ -84,7 +98,21 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 		ed.InlineMessageID = msg.InlineMessageID
 		_, err = bot.Send(ed)
 		if err != nil {
-			log.Println(fmt.Errorf("could not update inline message: %v", err))
+			//log.Printf("Could not edit inline message: %v \nThe message was: %s\n", err, ed.Text)
+			log.Printf("Could not edit inline message: %v\n", err)
+			splits := strings.Split(ed.Text, "\n")
+
+			ed.Text = ""
+			for _, l := range splits {
+				if !strings.HasPrefix(l, "\u251C") && !strings.HasPrefix(l, "\u2514") {
+					ed.Text += l + "\n"
+				}
+			}
+			log.Printf("try again:\n %s", ed.Text)
+			_, err = bot.Send(ed)
+			if err != nil {
+				return fmt.Errorf("could not update inline message: %v", err)
+			}
 		}
 	}
 	popupText := fmt.Sprintf(`You voted for "%s"`, choice.Text)

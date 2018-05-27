@@ -5,9 +5,8 @@ import (
 	"log"
 	"strconv"
 
-	"strings"
-
 	"github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kyokomi/emoji"
 )
 
 func postPoll(bot *tgbotapi.BotAPI, p *poll, chatid int64) (tgbotapi.Message, error) {
@@ -72,14 +71,6 @@ func sendNewQuestionMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Sto
 	return nil
 }
 
-func emojify(number int) string {
-	str := strconv.Itoa(number)
-	for number, emoji := range emojinumbers {
-		str = strings.Replace(str, number, emoji, -1)
-	}
-	return str
-}
-
 func buildPollMarkup(p *poll) *tgbotapi.InlineKeyboardMarkup {
 	buttonrows := make([][]tgbotapi.InlineKeyboardButton, 0) //len(p.Options), len(p.Options))
 	row := -1
@@ -122,32 +113,27 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 	}
 
-	listing += fmt.Sprintf("%s\n\n", p.Question)
+	listing += fmt.Sprintf("*%s*\n\n", p.Question)
+	log.Printf("Create listing for question: %s\n", p.Question)
+	var polledUsers int = 0
 	for i, o := range p.Options {
-		var nr string
-		if len(p.Options) < 10 {
-			nr = emojify(i + 1)
-		} else {
-			nr = fmt.Sprintf("%d)", i+1)
-		}
-
 		var part string
 		if len(p.Answers) > 0 {
 			part = fmt.Sprintf(" (%.0f%%)", 100.*float64(o.Ctr)/float64(len(p.Answers)))
-			// part = fmt.Sprintf("\n%s *%s* (%d/%d):\n ", emojify(i+1), o.Text, o.Ctr, len(p.Answers))
 		}
+		listing += fmt.Sprintf("\n*%s*%s", o.Text, part)
 
-		listing += fmt.Sprintf("\n%s *%s*%s", nr, o.Text, part)
-		if len(p.Answers) < maxNumberOfUsersListed {
-			listing += ":\n "
-			for _, u := range listOfUsers[i] {
-				listing += " " + getDisplayUserName(u) + ","
+		users_on_answer := len(listOfUsers[i])
+		polledUsers += users_on_answer
+		if len(p.Answers) < maxNumberOfUsersListed && users_on_answer > 0 {
+			for j := 0; j+1 < users_on_answer; j++ {
+				listing += "\n\u251C " + getDisplayUserName(listOfUsers[i][j])
 			}
-			listing = listing[:len(listing)-1]
+			listing += "\n\u2514 " + getDisplayUserName(listOfUsers[i][users_on_answer-1])
 		}
 		listing += "\n"
-
 	}
+	listing += emoji.Sprint(fmt.Sprintf("\n%d :busts_in_silhouette:\n", polledUsers))
 	return listing
 }
 

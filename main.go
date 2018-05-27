@@ -36,7 +36,7 @@ func run() error {
 		return fmt.Errorf("could not start bot: %v", err)
 	}
 
-	// bot.Debug = true
+	bot.Debug = true
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
