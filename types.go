@@ -14,6 +14,8 @@ type Store interface {
 	GetUser(userid int) (*tgbotapi.User, error)
 	GetPollsByUser(userid int) ([]*poll, error)
 	GetPollID(messageid int) (int, error)
+	GetPollNewer(pollid int, userid int) (*poll, error)
+	GetPollOlder(pollid int, userid int) (*poll, error)
 	GetAllPollMsg(pollid int) ([]pollident, error)
 	GetAllPollInlineMsg(pollid int) ([]pollident, error)
 	GetState(userid int) (state int, pollid int, err error)
@@ -43,6 +45,9 @@ type poll struct {
 	MessageID int
 	UserID    int
 	Question  string
+	Inactive  int
+	Private   int
+	Type      int
 	Options   []option
 	Answers   []answer
 }

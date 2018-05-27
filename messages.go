@@ -5,14 +5,12 @@ import (
 	"log"
 	"strconv"
 
-	"strings"
-
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func postPoll(bot *tgbotapi.BotAPI, p *poll, chatid int64) (tgbotapi.Message, error) {
 	share := tgbotapi.InlineKeyboardButton{
-		Text:              "share poll",
+		Text:              locSharePoll,
 		SwitchInlineQuery: &p.Question,
 	}
 	new := tgbotapi.NewInlineKeyboardButtonData(locCreateNewPoll, createPollQuery)
@@ -43,8 +41,17 @@ func sendMainMenuMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) (tgbotapi
 }
 
 func sendInterMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgbotapi.Message, error) {
+	shareButton := tgbotapi.InlineKeyboardButton{
+		Text:              locSharePoll,
+		SwitchInlineQuery: &p.Question,
+	}
+	pollDoneButton := tgbotapi.NewInlineKeyboardButtonData(
+		locPollDoneButton, fmt.Sprintf("%s:%d", pollDoneQuery, p.ID))
+
 	buttons := make([]tgbotapi.InlineKeyboardButton, 0)
-	buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(locPollDoneButton, fmt.Sprintf("%s:%d", pollDoneQuery, p.ID)))
+	buttons = append(buttons, shareButton)
+	buttons = append(buttons, pollDoneButton)
+
 	markup := tgbotapi.NewInlineKeyboardMarkup(buttons)
 	messageTxt := locAddedOption
 	messageTxt += p.Question + "\n\n"
@@ -72,12 +79,19 @@ func sendNewQuestionMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Sto
 	return nil
 }
 
-func emojify(number int) string {
-	str := strconv.Itoa(number)
-	for number, emoji := range emojinumbers {
-		str = strings.Replace(str, number, emoji, -1)
+func sendEditMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgbotapi.Message, error) {
+	body := "This is the poll currently selected:\n```\n"
+	body += p.Question + "\n"
+	for i, o := range p.Options {
+		body += fmt.Sprintf("%d. %s", i+1, o.Text) + "\n"
 	}
-	return str
+	body += "```\n\n"
+	msg := tgbotapi.NewMessage(int64(update.Message.From.ID), body)
+	msg.ParseMode = tgbotapi.ModeMarkdown
+
+	msg.ReplyMarkup = buildEditMarkup(p, false, false)
+
+	return bot.Send(&msg)
 }
 
 func buildPollMarkup(p *poll) *tgbotapi.InlineKeyboardMarkup {
@@ -122,28 +136,20 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 	}
 
-	listing += fmt.Sprintf("%s\n\n", p.Question)
+	listing += fmt.Sprintf("*%s*\n\n", p.Question)
 	for i, o := range p.Options {
-		var nr string
-		if len(p.Options) < 10 {
-			nr = emojify(i + 1)
-		} else {
-			nr = fmt.Sprintf("%d)", i+1)
-		}
-
 		var part string
 		if len(p.Answers) > 0 {
 			part = fmt.Sprintf(" (%.0f%%)", 100.*float64(o.Ctr)/float64(len(p.Answers)))
-			// part = fmt.Sprintf("\n%s *%s* (%d/%d):\n ", emojify(i+1), o.Text, o.Ctr, len(p.Answers))
 		}
+		listing += fmt.Sprintf("\n*%s*%s:", o.Text, part)
 
-		listing += fmt.Sprintf("\n%s *%s*%s", nr, o.Text, part)
-		if len(p.Answers) < maxNumberOfUsersListed {
-			listing += ":\n "
-			for _, u := range listOfUsers[i] {
-				listing += " " + getDisplayUserName(u) + ","
+		users_on_answer := len(listOfUsers[i])
+		if len(p.Answers) < maxNumberOfUsersListed && users_on_answer > 0 {
+			for j := 0; j+1 < users_on_answer; j++ {
+				listing += "\n\u251C " + getDisplayUserName(listOfUsers[i][j])
 			}
-			listing = listing[:len(listing)-1]
+			listing += "\n\u2514 " + getDisplayUserName(listOfUsers[i][users_on_answer-1])
 		}
 		listing += "\n"
 
@@ -151,12 +157,36 @@ func buildPollListing(p *poll, st Store) (listing string) {
 	return listing
 }
 
-func getDisplayUserName(u *tgbotapi.User) string {
-	//if u.UserName != "" {
-	////return fmt.Sprintf(" @%s", u.UserName)
-	//return fmt.Sprintf(" %s", u.UserName)
-	//}
+func buildEditMarkup(p *poll, noOlder, noNewer bool) *tgbotapi.InlineKeyboardMarkup {
+	query := fmt.Sprintf("e:%d", p.ID)
 
+	buttonrows := make([][]tgbotapi.InlineKeyboardButton, 0)
+	buttonrows = append(buttonrows, make([]tgbotapi.InlineKeyboardButton, 0))
+	buttonrows = append(buttonrows, make([]tgbotapi.InlineKeyboardButton, 0))
+	buttonrows = append(buttonrows, make([]tgbotapi.InlineKeyboardButton, 0))
+
+	buttonLast := tgbotapi.NewInlineKeyboardButtonData("\u2B05", query+":-")
+	buttonNext := tgbotapi.NewInlineKeyboardButtonData("\u27A1", query+":+")
+	if noOlder {
+		buttonLast = tgbotapi.NewInlineKeyboardButtonData("\u2B05", "dummy")
+	}
+	if noNewer {
+		buttonNext = tgbotapi.NewInlineKeyboardButtonData("\u27A1", "dummy")
+	}
+	buttonrows[0] = append(buttonrows[0], buttonLast, buttonNext)
+	buttonInactive := tgbotapi.NewInlineKeyboardButtonData("open", query+":c")
+	if p.Inactive == inactive {
+		buttonInactive = tgbotapi.NewInlineKeyboardButtonData("inactive", query+":c")
+	}
+	buttonrows[1] = append(buttonrows[1], buttonInactive)
+	buttonEditQuestion := tgbotapi.NewInlineKeyboardButtonData("change question", query+":q")
+	buttonrows[2] = append(buttonrows[2], buttonEditQuestion)
+	markup := tgbotapi.NewInlineKeyboardMarkup(buttonrows...)
+
+	return &markup
+}
+
+func getDisplayUserName(u *tgbotapi.User) string {
 	if u.FirstName == "" && u.LastName == "" {
 		return strconv.Itoa(u.ID)
 	} else if u.FirstName != "" {

@@ -13,13 +13,37 @@ func handleDialog(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) error 
 	pollid := -1
 	var err error
 
-	if !strings.Contains(update.Message.Text, locStartCommand) {
-		state, pollid, err = st.GetState(update.Message.From.ID)
-		if err != nil {
-			// could not retrieve state -> state is zero
-			state = ohHi
-			log.Printf("could not get state from database: %v\n", err)
+	state, pollid, err = st.GetState(update.Message.From.ID)
+	if err != nil {
+		// could not retrieve state -> state is zero
+		state = ohHi
+		log.Printf("could not get state from database: %v\n", err)
+	}
+
+	if strings.Contains(update.Message.Text, locEditCommand) {
+		polls, err := st.GetPollsByUser(update.Message.From.ID)
+		if err != nil || len(polls) == 0 {
+			log.Printf("could not get polls of user with userid %d: %v", update.Message.From.ID, err)
+			msg := tgbotapi.NewMessage(int64(update.Message.From.ID), locNoMessageToEdit)
+			_, err = bot.Send(&msg)
+			if err != nil {
+				return fmt.Errorf("could not send message: %v", err)
+			}
+			return fmt.Errorf("could not find message to edit: %v", err)
 		}
+
+		var p *poll
+		for _, p = range polls {
+			if p.ID == pollid {
+				break
+			}
+		}
+
+		_, err = sendEditMessage(bot, update, p)
+		if err != nil {
+			return fmt.Errorf("could not send edit message: %v", err)
+		}
+		return nil
 	}
 
 	if pollid < 0 && state != waitingForQuestion {
@@ -62,6 +86,60 @@ func handleDialog(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) error 
 		}
 
 		return nil
+	}
+
+	if state == editQuestion {
+		p, err := st.GetPoll(pollid)
+		if err != nil {
+			return fmt.Errorf("could not get poll: %v", err)
+		}
+
+		p.Question = update.Message.Text
+
+		_, err = st.SavePoll(p)
+		if err != nil {
+			return fmt.Errorf("could not save poll: %v", err)
+		}
+
+		msg := tgbotapi.NewMessage(
+			int64(update.Message.From.ID),
+			fmt.Sprintf(locGotEditQuestion, p.Question))
+		_, err = bot.Send(&msg)
+		if err != nil {
+			return fmt.Errorf("could not send message: %v", err)
+		}
+
+		state = editPoll
+		err = st.SaveState(update.Message.From.ID, pollid, state)
+		if err != nil {
+			return fmt.Errorf("could not save state: %v", err)
+		}
+		//return nil
+	}
+
+	if state == editPoll {
+		p, err := st.GetPoll(pollid)
+		if err != nil {
+			return fmt.Errorf("could not get poll: %v", err)
+		}
+
+		body := "This is the poll currently selected:\n```\n"
+		body += p.Question + "\n"
+		for i, o := range p.Options {
+			body += fmt.Sprintf("%d. %s", i+1, o.Text) + "\n"
+		}
+		body += "```\n\n"
+
+		msg := tgbotapi.NewMessage(
+			update.Message.Chat.ID,
+			body)
+		msg.ParseMode = tgbotapi.ModeMarkdown
+		msg.ReplyMarkup = buildEditMarkup(p, false, false)
+
+		_, err = bot.Send(msg)
+		if err != nil {
+			return fmt.Errorf("could not send message: %v", err)
+		}
 	}
 
 	if state == waitingForOption {

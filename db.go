@@ -110,8 +110,50 @@ func (st *sqlStore) GetUser(userid int) (*tgbotapi.User, error) {
 func (st *sqlStore) GetPoll(pollid int) (*poll, error) {
 	p := &poll{ID: pollid}
 	var err error
-	row := st.db.QueryRow("SELECT UserID, Question FROM poll WHERE ID = ?", pollid)
-	if err := row.Scan(&p.UserID, &p.Question); err != nil {
+	row := st.db.QueryRow("SELECT UserID, Question, Inactive FROM poll WHERE ID = ?", pollid)
+	if err := row.Scan(&p.UserID, &p.Question, &p.Inactive); err != nil {
+		return p, fmt.Errorf("could not scan poll #%d: %v", p.ID, err)
+	}
+
+	p.Options, err = st.GetOptions(p.ID)
+	if err != nil {
+		return p, fmt.Errorf("could not query options: %v", err)
+	}
+
+	p.Answers, err = st.GetAnswers(p.ID)
+	if err != nil {
+		return p, fmt.Errorf("could not query answers: %v", err)
+	}
+
+	return p, nil
+}
+
+func (st *sqlStore) GetPollNewer(pollid int, userid int) (*poll, error) {
+	p := &poll{}
+	var err error
+	row := st.db.QueryRow("SELECT UserID, ID, Question, Inactive FROM poll WHERE ID > ? AND UserID = ? ORDER BY ID ASC LIMIT 1", pollid, userid)
+	if err := row.Scan(&p.UserID, &p.ID, &p.Question, &p.Inactive); err != nil {
+		return p, fmt.Errorf("could not scan poll #%d: %v", p.ID, err)
+	}
+
+	p.Options, err = st.GetOptions(p.ID)
+	if err != nil {
+		return p, fmt.Errorf("could not query options: %v", err)
+	}
+
+	p.Answers, err = st.GetAnswers(p.ID)
+	if err != nil {
+		return p, fmt.Errorf("could not query answers: %v", err)
+	}
+
+	return p, nil
+}
+
+func (st *sqlStore) GetPollOlder(pollid int, userid int) (*poll, error) {
+	p := &poll{}
+	var err error
+	row := st.db.QueryRow("SELECT UserID, ID, Question, Inactive FROM poll WHERE ID < ? AND UserID = ? ORDER BY ID DESC LIMIT 1", pollid, userid)
+	if err := row.Scan(&p.UserID, &p.ID, &p.Question, &p.Inactive); err != nil {
 		return p, fmt.Errorf("could not scan poll #%d: %v", p.ID, err)
 	}
 
@@ -551,7 +593,7 @@ func (st *sqlStore) SavePoll(p *poll) (id int, err error) {
 			return id, fmt.Errorf("could not prepare sql statement: %v", err)
 		}
 		defer close(stmt)
-		_, err = stmt.Exec(p.UserID, p.Question, 0, 0, 0, time.Now().UTC().Unix(), time.Now().UTC().Unix(), p.ID)
+		_, err = stmt.Exec(p.UserID, p.Question, p.Inactive, p.Private, p.Type, time.Now().UTC().Unix(), time.Now().UTC().Unix(), p.ID)
 		if err != nil {
 			return id, fmt.Errorf("could not update user entry: %v", err)
 		}
@@ -565,7 +607,7 @@ func (st *sqlStore) SavePoll(p *poll) (id int, err error) {
 	defer close(stmt)
 
 	var res sql.Result
-	res, err = stmt.Exec(p.UserID, p.Question, 0, 0, 0, time.Now().UTC().Unix(), time.Now().UTC().Unix())
+	res, err = stmt.Exec(p.UserID, p.Question, p.Inactive, p.Private, p.Type, time.Now().UTC().Unix(), time.Now().UTC().Unix())
 	if err != nil {
 		return id, fmt.Errorf("could not execute sql insert statement: %v", err)
 	}
