@@ -20,4 +20,4 @@ const (
 )
 
 var maxNumberOfUsersListed = 100
-var maxPollsInlineQuery = 10
+var maxPollsInlineQuery = 5

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kyokomi/emoji"
 )
 
 func postPoll(bot *tgbotapi.BotAPI, p *poll, chatid int64) (tgbotapi.Message, error) {
@@ -137,14 +138,18 @@ func buildPollListing(p *poll, st Store) (listing string) {
 	}
 
 	listing += fmt.Sprintf("*%s*\n\n", p.Question)
+	log.Printf("Create listing for question: %s\n", p.Question)
+	var polledUsers int = 0
+
 	for i, o := range p.Options {
 		var part string
 		if len(p.Answers) > 0 {
 			part = fmt.Sprintf(" (%.0f%%)", 100.*float64(o.Ctr)/float64(len(p.Answers)))
 		}
-		listing += fmt.Sprintf("\n*%s*%s:", o.Text, part)
+		listing += fmt.Sprintf("\n*%s*%s", o.Text, part)
 
 		users_on_answer := len(listOfUsers[i])
+		polledUsers += users_on_answer
 		if len(p.Answers) < maxNumberOfUsersListed && users_on_answer > 0 {
 			for j := 0; j+1 < users_on_answer; j++ {
 				listing += "\n\u251C " + getDisplayUserName(listOfUsers[i][j])
@@ -152,8 +157,8 @@ func buildPollListing(p *poll, st Store) (listing string) {
 			listing += "\n\u2514 " + getDisplayUserName(listOfUsers[i][users_on_answer-1])
 		}
 		listing += "\n"
-
 	}
+	listing += emoji.Sprint(fmt.Sprintf("\n%d :busts_in_silhouette:\n", polledUsers))
 	return listing
 }
 
