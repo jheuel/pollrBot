@@ -17,6 +17,10 @@ var (
 	locFinishedCreatingPoll = "Finished creating a new poll\n\nPreview:\n"
 	locMainMenu             = "I can help you create, send and manage polls.\n\nWhat do you want to do?"
 	locPollDoneButton       = "done"
+	locToggleInactive       = "open poll"
+	locToggleOpen           = "close poll"
+	locToggleSingleChoice   = "set multiple choice"
+	locToggleMultipleChoice = "set single choice"
 	locAddedOption          = fmt.Sprintf(
 		"You can add more options by sending messages each containing one option. If you are done, please push the %s button.\n\nPreview:\n",
 		locPollDoneButton)

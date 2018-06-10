@@ -46,7 +46,7 @@ func handleDialog(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) error 
 		return nil
 	}
 
-	if pollid < 0 && state != waitingForQuestion {
+	if strings.Contains(update.Message.Text, "/start") || pollid < 0 && state != waitingForQuestion {
 		state = ohHi
 		err = st.SaveState(update.Message.From.ID, pollid, state)
 		if err != nil {

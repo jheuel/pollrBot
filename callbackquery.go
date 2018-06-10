@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -49,7 +50,7 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 	if err != nil {
 		return fmt.Errorf("could not get poll: %v", err)
 	}
-	if p.Inactive == inactive {
+	if isInactive(p) {
 		callbackConfig := tgbotapi.NewCallback(
 			update.CallbackQuery.ID,
 			"This poll is inactive.")
@@ -57,7 +58,7 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 		if err != nil {
 			return fmt.Errorf("could not send answer to callback query: %v", err)
 		}
-		return fmt.Errorf("Poll %d is inactive\n", pollid)
+		return fmt.Errorf("poll %d is inactive", pollid)
 	}
 
 	newAnswer := answer{
@@ -65,7 +66,7 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 		PollID:   pollid,
 		OptionID: optionid,
 	}
-	unvoted, err := st.SaveAnswer(newAnswer)
+	unvoted, err := st.SaveAnswer(p, newAnswer)
 	if err != nil {
 		return fmt.Errorf("could not save answers: %v", err)
 	}
@@ -82,54 +83,95 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 		}
 	}
 
-	msgs, err := st.GetAllPollMsg(pollid)
-	if err != nil {
-		return fmt.Errorf("could not get all pollmsgs: %v", err)
+	pollsToUpdate.enqueue(p.ID)
+
+	popupText := fmt.Sprintf(`You voted for "%s"`, choice.Text)
+	if unvoted {
+		popupText = fmt.Sprintf("Seems like you deleted your vote.")
 	}
+
+	callbackConfig := tgbotapi.NewCallback(
+		update.CallbackQuery.ID,
+		popupText)
+	_, err = bot.AnswerCallbackQuery(callbackConfig)
+	if err != nil {
+		return fmt.Errorf("could not send answer to callback query: %v", err)
+	}
+
+	return nil
+}
+
+func updatePollMessages(bot *tgbotapi.BotAPI, pollid int, st Store) error {
+	p, err := st.GetPoll(pollid)
+	if err != nil {
+		return fmt.Errorf("could not get poll: %v", err)
+	}
+
+	//msgs, err := st.GetAllPollMsg(pollid)
+	//if err != nil {
+	//return fmt.Errorf("could not get all pollmsgs: %v", err)
+	//}
+
+	listing := buildPollListing(p, st)
 
 	var ed tgbotapi.EditMessageTextConfig
-	ed.Text = buildPollListing(p, st)
+	ed.Text = listing
 	ed.ParseMode = tgbotapi.ModeMarkdown
 
-	ed.ReplyMarkup = buildPollMarkup(p)
-
-	for _, msg := range msgs {
-		ed.ChatID = msg.ChatID
-		ed.MessageID = msg.MessageID
-
-		_, err = bot.Send(ed)
-		if err != nil {
-			//log.Printf("Could not edit message: %v \nThe message was: %s\n", err, ed.Text)
-			log.Printf("Could not edit message: %v\n", err)
-			splits := strings.Split(ed.Text, "\n")
-
-			ed.Text = ""
-			for _, l := range splits {
-				if !strings.HasPrefix(l, "\u251C") && !strings.HasPrefix(l, "\u2514") {
-					ed.Text += l + "\n"
-				}
-			}
-			log.Printf("try again:\n %s", ed.Text)
-			_, err = bot.Send(ed)
-			if err != nil {
-				return fmt.Errorf("could not update message: %v", err)
-			}
-		}
+	if !isInactive(p) {
+		ed.ReplyMarkup = buildPollMarkup(p)
 	}
+
+	//for _, msg := range msgs {
+	//ed.ChatID = msg.ChatID
+	//ed.MessageID = msg.MessageID
+
+	//_, err = bot.Send(ed)
+	//if err != nil {
+	//log.Printf("Could not edit message: %v \nThe message was: %s\n", err, ed.Text)
+	//log.Printf("Could not edit message: %v\n", err)
+	//splits := strings.Split(ed.Text, "\n")
+
+	//ed.Text = ""
+	//for _, l := range splits {
+	//if !strings.HasPrefix(l, "\u251C") && !strings.HasPrefix(l, "\u2514") {
+	//ed.Text += l + "\n"
+	//}
+	//}
+	//log.Printf("try again:\n %s", ed.Text)
+	//_, err = bot.Send(ed)
+	//if err != nil {
+	//log.Printf("could not update message: %v\n", err)
+	//continue
+	//}
+	//}
+	//}
+
 	// reset
 	ed.ChatID = 0
 	ed.MessageID = 0
 
-	msgs, err = st.GetAllPollInlineMsg(p.ID)
+	msgs, err := st.GetAllPollInlineMsg(p.ID)
 	if err != nil {
 		return fmt.Errorf("could not get all poll inline messages: %v", err)
 	}
 
 	for _, msg := range msgs {
+		ed.Text = listing
 		ed.InlineMessageID = msg.InlineMessageID
-		_, err = bot.Send(ed)
+		_, err := bot.Send(ed)
 		if err != nil {
-			//log.Printf("Could not edit inline message: %v \nThe message was: %s\n", err, ed.Text)
+			if strings.Contains(err.Error(), "MESSAGE_ID_INVALID") {
+				st.RemoveInlineMsg(msg.InlineMessageID)
+			}
+			//if strings.Contains(err.Error(), "chat not found") {
+			//st.RemoveInlineMsg(msg.InlineMessageID)
+			//}
+			if strings.Contains(err.Error(), "message is not modified") {
+				continue
+			}
+			time.Sleep(20 * time.Millisecond)
+			log.Printf("\n\n\nCould not edit inline message: %v \nThe message was: %s\n", err, ed.Text)
 			log.Printf("Could not edit inline message: %v\n", err)
 			splits := strings.Split(ed.Text, "\n")
 
@@ -142,21 +184,11 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 			log.Printf("try again:\n %s", ed.Text)
 			_, err = bot.Send(ed)
 			if err != nil {
-				return fmt.Errorf("could not update inline message: %v", err)
+				log.Printf("could not update inline message: %v\n", err)
+				continue
 			}
 		}
-	}
-	popupText := fmt.Sprintf(`You voted for "%s"`, choice.Text)
-	if unvoted {
-		popupText = fmt.Sprintf("Seems like you deleted your vote.")
-	}
-
-	callbackConfig := tgbotapi.NewCallback(
-		update.CallbackQuery.ID,
-		popupText)
-	_, err = bot.AnswerCallbackQuery(callbackConfig)
-	if err != nil {
-		return fmt.Errorf("could not send answer to callback query: %v", err)
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	return nil
@@ -202,6 +234,7 @@ func handlePollEditQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 	noNewer := false
 	noOlder := false
 	toggleInactive := false
+	toggleMultipleChoice := false
 	switch splits[2] {
 	case "+":
 		p, err = st.GetPollNewer(pollid, update.CallbackQuery.From.ID)
@@ -221,6 +254,12 @@ func handlePollEditQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 			log.Printf("could not get poll: %v\n", err)
 		}
 		toggleInactive = true
+	case "m":
+		p, err = st.GetPoll(pollid)
+		if err != nil {
+			log.Printf("could not get poll: %v\n", err)
+		}
+		toggleMultipleChoice = true
 	case "q":
 		state := editQuestion
 		err = st.SaveState(update.CallbackQuery.From.ID, pollid, state)
@@ -244,16 +283,25 @@ func handlePollEditQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 		}
 	}
 
+	log.Println(p.Type)
 	// danger! malicious client could send pollid from another user in query
 	if p.UserID != update.CallbackQuery.From.ID {
 		return fmt.Errorf("user does not own poll: %v", err)
 	}
 
 	if toggleInactive {
-		p.Inactive = 1 - p.Inactive // only works if states are 0 and 1
+		p.Inactive = 1 - p.Inactive // states are 0 and 1
 		_, err = st.SavePoll(p)
 		if err != nil {
-			log.Println()
+			log.Println("Could not save toggled inactive state.")
+		}
+	}
+
+	if toggleMultipleChoice {
+		p.Type = 1 - p.Type // states are 0 and 1
+		_, err = st.SavePoll(p)
+		if err != nil {
+			log.Println("Could not save toggled multiple choice state.")
 		}
 	}
 
@@ -276,6 +324,7 @@ func handlePollEditQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 	if err != nil {
 		return fmt.Errorf("could not update message: %v", err)
 	}
+	pollsToUpdate.enqueue(p.ID)
 	return nil
 }
 

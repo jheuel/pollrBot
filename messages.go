@@ -42,16 +42,16 @@ func sendMainMenuMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) (tgbotapi
 }
 
 func sendInterMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgbotapi.Message, error) {
-	shareButton := tgbotapi.InlineKeyboardButton{
-		Text:              locSharePoll,
-		SwitchInlineQuery: &p.Question,
-	}
+	//shareButton := tgbotapi.InlineKeyboardButton{
+	//Text:              locSharePoll,
+	//SwitchInlineQuery: &p.Question,
+	//}
 	pollDoneButton := tgbotapi.NewInlineKeyboardButtonData(
 		locPollDoneButton, fmt.Sprintf("%s:%d", pollDoneQuery, p.ID))
 
 	buttons := make([]tgbotapi.InlineKeyboardButton, 0)
-	buttons = append(buttons, shareButton)
 	buttons = append(buttons, pollDoneButton)
+	//buttons = append(buttons, shareButton)
 
 	markup := tgbotapi.NewInlineKeyboardMarkup(buttons)
 	messageTxt := locAddedOption
@@ -81,6 +81,7 @@ func sendNewQuestionMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Sto
 }
 
 func sendEditMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgbotapi.Message, error) {
+	log.Println("p.Type in sendEditMessage:", p.Type)
 	body := "This is the poll currently selected:\n```\n"
 	body += p.Question + "\n"
 	for i, o := range p.Options {
@@ -137,9 +138,9 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 	}
 
-	listing += fmt.Sprintf("*%s*\n\n", p.Question)
-	log.Printf("Create listing for question: %s\n", p.Question)
-	var polledUsers int = 0
+	listing += emoji.Sprintf(":bar_chart:*%s*\n", p.Question)
+	//log.Printf("Create listing for question: %s\n", p.Question)
+	var polledUsers int
 
 	for i, o := range p.Options {
 		var part string
@@ -148,13 +149,13 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 		listing += fmt.Sprintf("\n*%s*%s", o.Text, part)
 
-		users_on_answer := len(listOfUsers[i])
-		polledUsers += users_on_answer
-		if len(p.Answers) < maxNumberOfUsersListed && users_on_answer > 0 {
-			for j := 0; j+1 < users_on_answer; j++ {
+		usersOnAnswer := len(listOfUsers[i])
+		polledUsers += usersOnAnswer
+		if len(p.Answers) < maxNumberOfUsersListed && usersOnAnswer > 0 {
+			for j := 0; j+1 < usersOnAnswer; j++ {
 				listing += "\n\u251C " + getDisplayUserName(listOfUsers[i][j])
 			}
-			listing += "\n\u2514 " + getDisplayUserName(listOfUsers[i][users_on_answer-1])
+			listing += "\n\u2514 " + getDisplayUserName(listOfUsers[i][usersOnAnswer-1])
 		}
 		listing += "\n"
 	}
@@ -179,11 +180,18 @@ func buildEditMarkup(p *poll, noOlder, noNewer bool) *tgbotapi.InlineKeyboardMar
 		buttonNext = tgbotapi.NewInlineKeyboardButtonData("\u27A1", "dummy")
 	}
 	buttonrows[0] = append(buttonrows[0], buttonLast, buttonNext)
-	buttonInactive := tgbotapi.NewInlineKeyboardButtonData("open", query+":c")
-	if p.Inactive == inactive {
-		buttonInactive = tgbotapi.NewInlineKeyboardButtonData("inactive", query+":c")
+	buttonInactive := tgbotapi.NewInlineKeyboardButtonData(locToggleOpen, query+":c")
+	if isInactive(p) {
+		buttonInactive = tgbotapi.NewInlineKeyboardButtonData(locToggleInactive, query+":c")
 	}
+	buttonMultipleChoice := tgbotapi.NewInlineKeyboardButtonData(locToggleSingleChoice, query+":m")
+	// if isMultipleChoice(p) {
+	// 	buttonMultipleChoice = tgbotapi.NewInlineKeyboardButtonData(locToggleMultipleChoice, query+":m")
+	// }
 	buttonrows[1] = append(buttonrows[1], buttonInactive)
+	if !isMultipleChoice(p) {
+		buttonrows[1] = append(buttonrows[1], buttonMultipleChoice)
+	}
 	buttonEditQuestion := tgbotapi.NewInlineKeyboardButtonData("change question", query+":q")
 	buttonrows[2] = append(buttonrows[2], buttonEditQuestion)
 	markup := tgbotapi.NewInlineKeyboardMarkup(buttonrows...)

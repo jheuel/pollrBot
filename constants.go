@@ -19,5 +19,10 @@ const (
 	inactive
 )
 
+const (
+	standard = iota
+	multipleChoice
+)
+
 var maxNumberOfUsersListed = 100
 var maxPollsInlineQuery = 5
