@@ -81,7 +81,6 @@ func sendNewQuestionMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Sto
 }
 
 func sendEditMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgbotapi.Message, error) {
-	log.Println("p.Type in sendEditMessage:", p.Type)
 	body := "This is the poll currently selected:\n```\n"
 	body += p.Question + "\n"
 	for i, o := range p.Options {
@@ -123,6 +122,7 @@ func buildPollMarkup(p *poll) *tgbotapi.InlineKeyboardMarkup {
 }
 
 func buildPollListing(p *poll, st Store) (listing string) {
+	polledUsers := make(map[int]struct{})
 	listOfUsers := make([][]*tgbotapi.User, len(p.Options))
 	for i, o := range p.Options {
 		for _, a := range p.Answers {
@@ -133,6 +133,7 @@ func buildPollListing(p *poll, st Store) (listing string) {
 					listOfUsers[i] = append(listOfUsers[i], &tgbotapi.User{ID: a.UserID})
 					continue
 				}
+				polledUsers[u.ID] = struct{}{}
 				listOfUsers[i] = append(listOfUsers[i], u)
 			}
 		}
@@ -140,17 +141,15 @@ func buildPollListing(p *poll, st Store) (listing string) {
 
 	listing += emoji.Sprintf(":bar_chart:*%s*\n", p.Question)
 	//log.Printf("Create listing for question: %s\n", p.Question)
-	var polledUsers int
 
 	for i, o := range p.Options {
 		var part string
 		if len(p.Answers) > 0 {
-			part = fmt.Sprintf(" (%.0f%%)", 100.*float64(o.Ctr)/float64(len(p.Answers)))
+			part = fmt.Sprintf(" (%.0f%%)", 100.*float64(o.Ctr)/float64(len(polledUsers)))
 		}
 		listing += fmt.Sprintf("\n*%s*%s", o.Text, part)
 
 		usersOnAnswer := len(listOfUsers[i])
-		polledUsers += usersOnAnswer
 		if len(p.Answers) < maxNumberOfUsersListed && usersOnAnswer > 0 {
 			for j := 0; j+1 < usersOnAnswer; j++ {
 				listing += "\n\u251C " + getDisplayUserName(listOfUsers[i][j])
@@ -159,7 +158,7 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 		listing += "\n"
 	}
-	listing += emoji.Sprint(fmt.Sprintf("\n%d :busts_in_silhouette:\n", polledUsers))
+	listing += emoji.Sprint(fmt.Sprintf("\n%d :busts_in_silhouette:\n", len(polledUsers)))
 	return listing
 }
 
@@ -192,8 +191,10 @@ func buildEditMarkup(p *poll, noOlder, noNewer bool) *tgbotapi.InlineKeyboardMar
 	if !isMultipleChoice(p) {
 		buttonrows[1] = append(buttonrows[1], buttonMultipleChoice)
 	}
-	buttonEditQuestion := tgbotapi.NewInlineKeyboardButtonData("change question", query+":q")
-	buttonrows[2] = append(buttonrows[2], buttonEditQuestion)
+	buttonEditQuestion := tgbotapi.NewInlineKeyboardButtonData(locEditQuestionButton, query+":q")
+	buttonAddOptions := tgbotapi.NewInlineKeyboardButtonData(locAddOptionButton, query+":o")
+
+	buttonrows[2] = append(buttonrows[2], buttonEditQuestion, buttonAddOptions)
 	markup := tgbotapi.NewInlineKeyboardMarkup(buttonrows...)
 
 	return &markup

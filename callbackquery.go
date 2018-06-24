@@ -260,6 +260,19 @@ func handlePollEditQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 			log.Printf("could not get poll: %v\n", err)
 		}
 		toggleMultipleChoice = true
+	case "o":
+		state := waitingForOption
+		err = st.SaveState(update.CallbackQuery.From.ID, pollid, state)
+		if err != nil {
+			return fmt.Errorf("could not save state: %v", err)
+		}
+
+		msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, locAddOption)
+		_, err = bot.Send(&msg)
+		if err != nil {
+			return fmt.Errorf("could not send message: %v", err)
+		}
+		return nil
 	case "q":
 		state := editQuestion
 		err = st.SaveState(update.CallbackQuery.From.ID, pollid, state)
@@ -283,7 +296,6 @@ func handlePollEditQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 		}
 	}
 
-	log.Println(p.Type)
 	// danger! malicious client could send pollid from another user in query
 	if p.UserID != update.CallbackQuery.From.ID {
 		return fmt.Errorf("user does not own poll: %v", err)
