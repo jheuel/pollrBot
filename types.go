@@ -10,10 +10,13 @@ type Store interface {
 	Close()
 	AddMsgToPoll(pollid int, messageid int, chatid int64) error
 	AddInlineMsgToPoll(pollid int, inlinemessageid string) error
+	RemoveInlineMsg(inlinemessageid string) error
 	GetPoll(pollid int) (*poll, error)
 	GetUser(userid int) (*tgbotapi.User, error)
 	GetPollsByUser(userid int) ([]*poll, error)
 	GetPollID(messageid int) (int, error)
+	GetPollNewer(pollid int, userid int) (*poll, error)
+	GetPollOlder(pollid int, userid int) (*poll, error)
 	GetAllPollMsg(pollid int) ([]pollident, error)
 	GetAllPollInlineMsg(pollid int) ([]pollident, error)
 	GetState(userid int) (state int, pollid int, err error)
@@ -21,7 +24,7 @@ type Store interface {
 	SaveUser(*tgbotapi.User) error
 	SavePoll(*poll) (int, error)
 	SaveOptions([]option) error
-	SaveAnswer(answer) (unvoted bool, err error)
+	SaveAnswer(*poll, answer) (unvoted bool, err error)
 }
 
 type answer struct {
@@ -43,6 +46,17 @@ type poll struct {
 	MessageID int
 	UserID    int
 	Question  string
+	Inactive  int
+	Private   int
+	Type      int
 	Options   []option
 	Answers   []answer
+}
+
+func isInactive(poll *poll) bool {
+	return poll.Inactive == inactive
+}
+
+func isMultipleChoice(poll *poll) bool {
+	return poll.Type == multipleChoice
 }
