@@ -360,21 +360,7 @@ func (st *sqlStore) SaveAnswer(p *poll, a answer) (unvoted bool, err error) {
 		prevOpts = append(prevOpts, optionid)
 	}
 
-	if !isMultipleChoice(p) {
-		// decrement previously selected option(s)
-		stmt, err = tx.Prepare("UPDATE option SET Ctr = Ctr - 1 WHERE ID = ? AND Ctr > 0")
-		if err != nil {
-			return false, fmt.Errorf("could not prepare sql statement: %v", err)
-		}
-		for _, o := range prevOpts {
-			if _, err = stmt.Exec(o); err != nil {
-				return false, fmt.Errorf("could not decrement option: %v", err)
-			}
-		}
-	}
-
-	if len(prevOpts) > 0 {
-		// user voted before
+	if len(prevOpts) > 0 { // user voted before
 
 		// user clicked the same answer again
 		if contains(prevOpts, a.OptionID) {
@@ -399,6 +385,19 @@ func (st *sqlStore) SaveAnswer(p *poll, a answer) (unvoted bool, err error) {
 		}
 
 		if !isMultipleChoice(p) {
+
+			// decrement previously selected option(s)
+			stmt, err = tx.Prepare("UPDATE option SET Ctr = Ctr - 1 WHERE ID = ? AND Ctr > 0")
+			if err != nil {
+				return false, fmt.Errorf("could not prepare sql statement: %v", err)
+			}
+			for _, o := range prevOpts {
+				if _, err = stmt.Exec(o); err != nil {
+					return false, fmt.Errorf("could not decrement option: %v", err)
+				}
+			}
+
+			// update answer
 			stmt, err = tx.Prepare("UPDATE answer SET OptionID = ?, LastSaved = ? WHERE UserID = ? AND PollID = ?")
 			if err != nil {
 				return false, fmt.Errorf("could not prepare sql statement: %v", err)

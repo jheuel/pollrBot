@@ -157,6 +157,9 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		var part string
 		if len(p.Answers) > 0 {
 			part = fmt.Sprintf(" (%.0f%%)", 100.*float64(votesForOption[o.ID])/float64(len(polledUsers)))
+			if votesForOption[o.ID] != o.Ctr {
+				log.Printf("Counter for option #%d is off: %d stored vs. %d counted", o.ID, o.Ctr, votesForOption[o.ID])
+			}
 		}
 		listing += fmt.Sprintf("\n*%s*%s", o.Text, part)
 
