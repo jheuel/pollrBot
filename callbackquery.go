@@ -116,7 +116,7 @@ func updatePollMessages(bot *tgbotapi.BotAPI, pollid int, st Store) error {
 
 	var ed tgbotapi.EditMessageTextConfig
 	ed.Text = listing
-	ed.ParseMode = tgbotapi.ModeMarkdown
+	ed.ParseMode = tgbotapi.ModeHTML
 
 	if !isInactive(p) {
 		ed.ReplyMarkup = buildPollMarkup(p)
@@ -326,7 +326,7 @@ func handlePollEditQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 
 	var ed tgbotapi.EditMessageTextConfig
 	ed.Text = body
-	ed.ParseMode = tgbotapi.ModeMarkdown
+	ed.ParseMode = tgbotapi.ModeHTML
 	ed.ReplyMarkup = buildEditMarkup(p, noOlder, noNewer)
 
 	ed.ChatID = update.CallbackQuery.Message.Chat.ID

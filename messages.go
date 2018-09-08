@@ -88,7 +88,7 @@ func sendEditMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgb
 	}
 	body += "```\n\n"
 	msg := tgbotapi.NewMessage(int64(update.Message.From.ID), body)
-	msg.ParseMode = tgbotapi.ModeMarkdown
+	msg.ParseMode = tgbotapi.ModeHTML
 
 	msg.ReplyMarkup = buildEditMarkup(p, false, false)
 
@@ -150,7 +150,7 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 	}
 
-	listing += emoji.Sprintf(":bar_chart:*%s*\n", p.Question)
+	listing += emoji.Sprintf(":bar_chart:<b>%s</b>\n", p.Question)
 	//log.Printf("Create listing for question: %s\n", p.Question)
 
 	for i, o := range p.Options {
@@ -161,7 +161,7 @@ func buildPollListing(p *poll, st Store) (listing string) {
 				log.Printf("Counter for option #%d is off: %d stored vs. %d counted", o.ID, o.Ctr, votesForOption[o.ID])
 			}
 		}
-		listing += fmt.Sprintf("\n*%s*%s", o.Text, part)
+		listing += fmt.Sprintf("\n<b>%s</b>%s", o.Text, part)
 
 		usersOnAnswer := len(listOfUsers[i])
 		if len(p.Answers) < maxNumberOfUsersListed && usersOnAnswer > 0 {

@@ -21,7 +21,7 @@ func handleInlineQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) e
 	results := make([]interface{}, len(polls))
 	for i, p := range polls {
 		log.Println(p)
-		article := tgbotapi.NewInlineQueryResultArticleMarkdown(strconv.Itoa(p.ID), p.Question, buildPollListing(p, st))
+		article := tgbotapi.NewInlineQueryResultArticleHTML(strconv.Itoa(p.ID), p.Question, buildPollListing(p, st))
 		if len(p.Options) > 0 {
 			article.ReplyMarkup = buildPollMarkup(p)
 		}
@@ -75,7 +75,7 @@ func handleInlineQueryAdmin(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Sto
 	results := make([]interface{}, len(polls))
 	for i, p := range polls {
 		log.Println(p)
-		article := tgbotapi.NewInlineQueryResultArticleMarkdown(strconv.Itoa(p.ID), p.Question, buildPollListing(p, st))
+		article := tgbotapi.NewInlineQueryResultArticleHTML(strconv.Itoa(p.ID), p.Question, buildPollListing(p, st))
 		if len(p.Options) > 0 && active {
 			article.ReplyMarkup = buildPollMarkup(p)
 		}

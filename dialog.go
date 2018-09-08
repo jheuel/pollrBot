@@ -133,7 +133,7 @@ func handleDialog(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) error 
 		msg := tgbotapi.NewMessage(
 			update.Message.Chat.ID,
 			body)
-		msg.ParseMode = tgbotapi.ModeMarkdown
+		msg.ParseMode = tgbotapi.ModeHTML
 		msg.ReplyMarkup = buildEditMarkup(p, false, false)
 
 		_, err = bot.Send(msg)
