@@ -18,6 +18,8 @@ var (
 	locNoMessageToEdit      = "Sorry, I could not find a poll to edit."
 	locFinishedCreatingPoll = "Finished creating a new poll\n\nPreview:\n"
 	locMainMenu             = "I can help you create, send and manage polls.\n\nWhat do you want to do?"
+	locAboutCommand         = "/about"
+	locAboutMessage         = "You can find me on github:\nhttps://github.com/jheuel/pollrBot"
 	locPollDoneButton       = "done"
 	locToggleInactive       = "open poll"
 	locToggleOpen           = "close poll"

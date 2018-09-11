@@ -13,6 +13,15 @@ func handleDialog(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) error 
 	pollid := -1
 	var err error
 
+	if strings.Contains(update.Message.Text, locAboutCommand) {
+		msg := tgbotapi.NewMessage(int64(update.Message.From.ID), locAboutMessage)
+		_, err = bot.Send(&msg)
+		if err != nil {
+			return fmt.Errorf("could not send message: %v", err)
+		}
+		return err
+	}
+
 	state, pollid, err = st.GetState(update.Message.From.ID)
 	if err != nil {
 		// could not retrieve state -> state is zero

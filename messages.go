@@ -103,7 +103,7 @@ func buildPollMarkup(p *poll) *tgbotapi.InlineKeyboardMarkup {
 	for _, o := range p.Options {
 		for _, a := range p.Answers {
 			if a.OptionID == o.ID {
-				votesForOption[o.ID] += 1
+				votesForOption[o.ID]++
 			}
 		}
 	}
@@ -137,7 +137,7 @@ func buildPollListing(p *poll, st Store) (listing string) {
 	for i, o := range p.Options {
 		for _, a := range p.Answers {
 			if a.OptionID == o.ID {
-				votesForOption[o.ID] += 1
+				votesForOption[o.ID]++
 				u, err := st.GetUser(a.UserID)
 				if err != nil {
 					log.Printf("could not get user: %v", err)
