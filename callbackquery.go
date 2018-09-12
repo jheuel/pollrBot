@@ -164,6 +164,7 @@ func updatePollMessages(bot *tgbotapi.BotAPI, pollid int, st Store) error {
 			if strings.Contains(err.Error(), "MESSAGE_ID_INVALID") {
 				log.Printf("Remove inline message %s\n", msg.InlineMessageID)
 				st.RemoveInlineMsg(msg.InlineMessageID)
+				continue
 			}
 			// if strings.Contains(err.Error(), "chat not found") {
 			// 	log.Printf("Remove inline message %s\n", msg.InlineMessageID)
