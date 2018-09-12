@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"strconv"
 
@@ -150,7 +151,7 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 	}
 
-	listing += emoji.Sprintf(":bar_chart:<b>%s</b>\n", p.Question)
+	listing += emoji.Sprintf(":bar_chart:<b>%s</b>\n", html.EscapeString(p.Question))
 	//log.Printf("Create listing for question: %s\n", p.Question)
 
 	for i, o := range p.Options {
@@ -161,14 +162,14 @@ func buildPollListing(p *poll, st Store) (listing string) {
 				log.Printf("Counter for option #%d is off: %d stored vs. %d counted", o.ID, o.Ctr, votesForOption[o.ID])
 			}
 		}
-		listing += fmt.Sprintf("\n<b>%s</b>%s", o.Text, part)
+		listing += fmt.Sprintf("\n<b>%s</b>%s", html.EscapeString(o.Text), part)
 
 		usersOnAnswer := len(listOfUsers[i])
 		if len(p.Answers) < maxNumberOfUsersListed && usersOnAnswer > 0 {
 			for j := 0; j+1 < usersOnAnswer; j++ {
-				listing += "\n\u251C " + getDisplayUserName(listOfUsers[i][j])
+				listing += "\n\u251C " + html.EscapeString(getDisplayUserName(listOfUsers[i][j]))
 			}
-			listing += "\n\u2514 " + getDisplayUserName(listOfUsers[i][usersOnAnswer-1])
+			listing += "\n\u2514 " + html.EscapeString(getDisplayUserName(listOfUsers[i][usersOnAnswer-1]))
 		}
 		listing += "\n"
 	}
