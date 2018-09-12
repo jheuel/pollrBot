@@ -161,21 +161,26 @@ func updatePollMessages(bot *tgbotapi.BotAPI, pollid int, st Store) error {
 		ed.InlineMessageID = msg.InlineMessageID
 		_, err := bot.Send(ed)
 		if err != nil {
+			log.Printf("\n\n\nCould not edit inline message: %v \nThe message was: %s\n", err, ed.Text)
+			log.Printf("Could not edit inline message: %v\n", err)
+
 			if strings.Contains(err.Error(), "MESSAGE_ID_INVALID") {
 				log.Printf("Remove inline message %s\n", msg.InlineMessageID)
 				st.RemoveInlineMsg(msg.InlineMessageID)
 				continue
 			}
+
 			// if strings.Contains(err.Error(), "chat not found") {
 			// 	log.Printf("Remove inline message %s\n", msg.InlineMessageID)
 			// 	st.RemoveInlineMsg(msg.InlineMessageID)
 			// }
+
 			if strings.Contains(err.Error(), "message is not modified") {
 				continue
 			}
+
 			time.Sleep(20 * time.Millisecond)
-			log.Printf("\n\n\nCould not edit inline message: %v \nThe message was: %s\n", err, ed.Text)
-			log.Printf("Could not edit inline message: %v\n", err)
+
 			splits := strings.Split(ed.Text, "\n")
 
 			ed.Text = ""
