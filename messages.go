@@ -82,12 +82,12 @@ func sendNewQuestionMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Sto
 }
 
 func sendEditMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgbotapi.Message, error) {
-	body := "This is the poll currently selected:\n```\n"
+	body := "This is the poll currently selected:\n<pre>\n"
 	body += p.Question + "\n"
 	for i, o := range p.Options {
 		body += fmt.Sprintf("%d. %s", i+1, o.Text) + "\n"
 	}
-	body += "```\n\n"
+	body += "</pre>\n\n"
 	msg := tgbotapi.NewMessage(int64(update.Message.From.ID), body)
 	msg.ParseMode = tgbotapi.ModeHTML
 
