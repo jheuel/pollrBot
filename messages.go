@@ -99,12 +99,21 @@ func sendEditMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, p *poll) (tgb
 func buildPollMarkup(p *poll) *tgbotapi.InlineKeyboardMarkup {
 	buttonrows := make([][]tgbotapi.InlineKeyboardButton, 0) //len(p.Options), len(p.Options))
 	row := -1
+	polledUsers := make(map[int]struct{})
 
 	votesForOption := make(map[int]int)
-	for _, o := range p.Options {
-		for _, a := range p.Answers {
+	for _, a := range p.Answers {
+		if !isMultipleChoice(p) {
+			if _, ok := polledUsers[a.UserID]; ok {
+				continue
+			}
+		}
+
+		for _, o := range p.Options {
+
 			if a.OptionID == o.ID {
 				votesForOption[o.ID]++
+				polledUsers[a.UserID] = struct{}{}
 			}
 		}
 	}
@@ -137,6 +146,11 @@ func buildPollListing(p *poll, st Store) (listing string) {
 	votesForOption := make(map[int]int)
 	for i, o := range p.Options {
 		for _, a := range p.Answers {
+			if !isMultipleChoice(p) {
+				if _, ok := polledUsers[a.UserID]; ok {
+					continue
+				}
+			}
 			if a.OptionID == o.ID {
 				votesForOption[o.ID]++
 				u, err := st.GetUser(a.UserID)
@@ -198,14 +212,14 @@ func buildEditMarkup(p *poll, noOlder, noNewer bool) *tgbotapi.InlineKeyboardMar
 	if isInactive(p) {
 		buttonInactive = tgbotapi.NewInlineKeyboardButtonData(locToggleInactive, query+":c")
 	}
-	buttonMultipleChoice := tgbotapi.NewInlineKeyboardButtonData(locToggleSingleChoice, query+":m")
-	// if isMultipleChoice(p) {
-	// 	buttonMultipleChoice = tgbotapi.NewInlineKeyboardButtonData(locToggleMultipleChoice, query+":m")
-	// }
 	buttonrows[1] = append(buttonrows[1], buttonInactive)
-	if !isMultipleChoice(p) {
-		buttonrows[1] = append(buttonrows[1], buttonMultipleChoice)
+
+	buttonMultipleChoice := tgbotapi.NewInlineKeyboardButtonData(locToggleSingleChoice, query+":m")
+	if isMultipleChoice(p) {
+		buttonMultipleChoice = tgbotapi.NewInlineKeyboardButtonData(locToggleMultipleChoice, query+":m")
 	}
+	buttonrows[1] = append(buttonrows[1], buttonMultipleChoice)
+
 	buttonEditQuestion := tgbotapi.NewInlineKeyboardButtonData(locEditQuestionButton, query+":q")
 	buttonAddOptions := tgbotapi.NewInlineKeyboardButtonData(locAddOptionButton, query+":o")
 
