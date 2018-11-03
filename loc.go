@@ -20,6 +20,8 @@ var (
 	locMainMenu             = "I can help you create, send and manage polls.\n\nWhat do you want to do?"
 	locAboutCommand         = "/about"
 	locAboutMessage         = "You can find me on github:\nhttps://github.com/jheuel/pollrBot"
+	locDonateCommand        = "/donate"
+	locDonateMessage        = "You can donate to pollrBot using <a href=\"https://commerce.coinbase.com/checkout/6bf4d01e-c638-41d9-9ac2-4a2aaf1beba9\">bitcoin</a> or <a href=\"https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Q43CKDHGRVSML\">paypal</a>."
 	locPollDoneButton       = "done"
 	locToggleInactive       = "open poll"
 	locToggleOpen           = "close poll"
