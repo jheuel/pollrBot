@@ -5,7 +5,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -187,8 +186,6 @@ func updatePollMessages(bot *tgbotapi.BotAPI, pollid int, st Store) error {
 				continue
 			}
 
-			time.Sleep(20 * time.Millisecond)
-
 			splits := strings.Split(ed.Text, "\n")
 
 			ed.Text = ""
@@ -204,7 +201,6 @@ func updatePollMessages(bot *tgbotapi.BotAPI, pollid int, st Store) error {
 				continue
 			}
 		}
-		time.Sleep(20 * time.Millisecond)
 	}
 
 	return nil

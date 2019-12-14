@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	//"github.com/go-telegram-bot-api/telegram-bot-api"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -20,7 +20,7 @@ func main() {
 	}
 }
 
-var pollsToUpdateConstRate = make(chan int, 10)
+var pollsToUpdateConstRate = make(chan int, 100)
 var pollsToUpdate = newUniqueChan()
 
 func newUniqueChan() *uniqueChan {
