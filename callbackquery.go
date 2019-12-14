@@ -10,14 +10,6 @@ import (
 )
 
 func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store) error {
-	callbackConfig := tgbotapi.NewCallback(
-		update.CallbackQuery.ID,
-		"")
-	_, err = bot.AnswerCallbackQuery(callbackConfig)
-	if err != nil {
-		fmt.Printf("could not send answer to callback query: %v", err)
-	}
-
 	if update.CallbackQuery.Data == "dummy" {
 		callbackConfig := tgbotapi.NewCallback(
 			update.CallbackQuery.ID,
@@ -92,18 +84,18 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, st Store)
 
 	pollsToUpdate.enqueue(p.ID)
 
-	//popupText := fmt.Sprintf(`You voted for "%s"`, choice.Text)
-	//if unvoted {
-	//popupText = fmt.Sprintf("Seems like you deleted your vote.")
-	//}
+	popupText := fmt.Sprintf(`You voted for "%s"`, choice.Text)
+	if unvoted {
+		popupText = fmt.Sprintf("Seems like you deleted your vote.")
+	}
 
-	//callbackConfig := tgbotapi.NewCallback(
-	//update.CallbackQuery.ID,
-	//popupText)
-	//_, err = bot.AnswerCallbackQuery(callbackConfig)
-	//if err != nil {
-	//return fmt.Errorf("could not send answer to callback query: %v", err)
-	//}
+	callbackConfig := tgbotapi.NewCallback(
+		update.CallbackQuery.ID,
+		popupText)
+	_, err = bot.AnswerCallbackQuery(callbackConfig)
+	if err != nil {
+		return fmt.Errorf("could not send answer to callback query: %v", err)
+	}
 
 	return nil
 }
