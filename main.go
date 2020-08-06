@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -67,6 +68,11 @@ func run() error {
 		}
 	}()
 
+	webhookURL := os.Getenv("URL")
+	if webhookURL == "" {
+		return fmt.Errorf("Did not find webhook URL $URL")
+	}
+
 	databaseFileName := os.Getenv("DB")
 	if databaseFileName == "" {
 		return fmt.Errorf("Did not find database file name $DB")
@@ -89,13 +95,19 @@ func run() error {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	updates, err := bot.GetUpdatesChan(u)
+	_, err = bot.SetWebhook(tgbotapi.NewWebhook(webhookURL + bot.Token))
 	if err != nil {
-		return fmt.Errorf("could not prepare update channel: %v", err)
+		log.Fatal(err)
 	}
+	info, err := bot.GetWebhookInfo()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if info.LastErrorDate != 0 {
+		log.Printf("Telegram callback failed: %s", info.LastErrorMessage)
+	}
+	updates := bot.ListenForWebhook("/" + bot.Token)
+	go http.ListenAndServe("127.0.0.1:8765", nil)
 
 	for {
 		select {
