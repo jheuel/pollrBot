@@ -23,7 +23,8 @@ After that you can run the bot with
 URL="https://pollr.yourdomain.com" DB="database.db" APITOKEN="euiaeouiaouiao" pollrBot
 ```
 
-# Statistics of [@pollrBot](https://telegram.me/pollrBot)
-Here are some numbers about how many users interacted with the pollrBot and how
-many polls were created.
+## Statistics of pollrBot
+Here are some numbers about how many users interacted with my instance of the
+pollrBot and how many polls were created. The instance is running next to a few
+other things on the smallest droplet you can get from digitalocean.com.
 ![Graph of number of users and polls vs time](stats.png)
