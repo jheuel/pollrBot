@@ -27,4 +27,5 @@ URL="https://pollr.yourdomain.com" DB="database.db" APITOKEN="euiaeouiaouiao" po
 Here are some numbers about how many users interacted with my instance of the
 pollrBot and how many polls were created. The instance is running next to a few
 other things on the smallest droplet you can get from digitalocean.com.
+
 ![Graph of number of users and polls vs time](stats.png)
