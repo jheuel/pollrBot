@@ -109,8 +109,11 @@ func run() error {
 	updates := bot.ListenForWebhook("/" + bot.Token)
 	go http.ListenAndServe("127.0.0.1:8765", nil)
 
+	reloadTimer := time.NewTimer(24 * time.Hour)
 	for {
 		select {
+		case <-reloadTimer.C:
+			return fmt.Errorf("Reload")
 		case pollid := <-pollsToUpdateConstRate:
 			err := updatePollMessages(bot, pollid, st)
 			if err != nil {
