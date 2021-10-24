@@ -14,6 +14,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var c crypt
+var adminID int64 = 3761925
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -21,12 +24,12 @@ func main() {
 	}
 }
 
-var pollsToUpdateConstRate = make(chan int, 100)
+var pollsToUpdateConstRate = make(chan int, 200)
 var pollsToUpdate = newUniqueChan()
 
 func newUniqueChan() *uniqueChan {
 	return &uniqueChan{
-		C:   make(chan int, 1000),
+		C:   make(chan int, 10000),
 		ids: make(map[int]struct{})}
 }
 
@@ -37,7 +40,7 @@ type uniqueChan struct {
 
 func (u *uniqueChan) enqueue(id int) {
 	if _, ok := u.ids[id]; ok {
-		log.Printf("Update for poll #%d is already scheduled.\n", id)
+		log.Printf("Update for poll #%d is already scheduled (%d scheduled updates).\n", id, len(u.ids))
 		return
 	}
 	u.C <- id
@@ -50,10 +53,10 @@ func (u *uniqueChan) dequeue() int {
 	return id
 }
 
-func newTimer() func() {
+func newTimer(name string) func() {
 	start := time.Now()
 	return func() {
-		log.Println("This action took: ", time.Now().Sub(start))
+		log.Printf("%s took: %s", name, time.Since(start))
 	}
 }
 
@@ -62,7 +65,7 @@ func run() error {
 	go func() {
 		var pollid int
 		for {
-			time.Sleep(400 * time.Millisecond)
+			time.Sleep(900 * time.Millisecond)
 			pollid = pollsToUpdate.dequeue()
 			pollsToUpdateConstRate <- pollid
 		}
@@ -72,6 +75,12 @@ func run() error {
 	if webhookURL == "" {
 		return fmt.Errorf("Did not find webhook URL $URL")
 	}
+
+	key := os.Getenv("SECRET")
+	if key == "" {
+		return fmt.Errorf("Did not find secret key $SECRET")
+	}
+	c = newCrypt(key)
 
 	databaseFileName := os.Getenv("DB")
 	if databaseFileName == "" {
@@ -83,10 +92,23 @@ func run() error {
 		return fmt.Errorf("Did not find telegram API token $APITOKEN")
 	}
 
+	ADMINID := os.Getenv("ADMINID")
+	if ADMINID != "" {
+		id, err := strconv.Atoi(ADMINID)
+		if err != nil {
+			return fmt.Errorf("Could not set adminID to %s: %v", ADMINID, err)
+		}
+		adminID = int64(id)
+	}
+
 	var st Store = newSQLStore(databaseFileName)
 	defer st.Close()
 
-	bot, err := tgbotapi.NewBotAPI(APIToken)
+	client := &http.Client{
+		Timeout: time.Second * 1,
+	}
+
+	bot, err := tgbotapi.NewBotAPIWithClient(APIToken, client)
 	if err != nil {
 		return fmt.Errorf("could not start bot: %v", err)
 	}
@@ -107,6 +129,31 @@ func run() error {
 		log.Printf("Telegram callback failed: %s", info.LastErrorMessage)
 	}
 	updates := bot.ListenForWebhook("/" + bot.Token)
+
+	// static files
+	staticFiles := []string{
+		"favicon.ico",
+		"manifest.json",
+		"asset-manifest.json",
+		"robots.txt",
+		"service-worker.js",
+		"logo192.png",
+		"logo512.png",
+		"index.html",
+	}
+
+	for _, staticFile := range staticFiles {
+		f := fmt.Sprintf("/%s", staticFile)
+		http.Handle(f, serveStatic("/home/jheuel/services/pollrBot/static/"+f))
+	}
+	http.Handle("/", serveStatic("/home/jheuel/services/pollrBot/static/index.html"))
+
+	http.HandleFunc("/poll/", pollHandler(st))
+	http.Handle("/messageme/", contactHandler(bot))
+
+	fs := http.FileServer(http.Dir("/home/jheuel/services/pollrBot/static/static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	go http.ListenAndServe("127.0.0.1:8765", nil)
 
 	reloadTimer := time.NewTimer(24 * time.Hour)
@@ -115,12 +162,15 @@ func run() error {
 		case <-reloadTimer.C:
 			return fmt.Errorf("Reload")
 		case pollid := <-pollsToUpdateConstRate:
+			stopTimer := newTimer("update poll")
+			log.Printf("Updating poll %d\n", pollid)
 			err := updatePollMessages(bot, pollid, st)
 			if err != nil {
 				log.Printf("Could not update poll #%d: %v", pollid, err)
 			}
+			stopTimer()
 		case update := <-updates:
-			stopTimer := newTimer()
+			stopTimer := newTimer("handle updates pdate")
 			defer stopTimer()
 
 			// INLINE QUERIES
@@ -132,7 +182,7 @@ func run() error {
 					log.Printf("could not save user: %v", err)
 				}
 
-				if update.InlineQuery.From.ID == 3761925 {
+				if update.InlineQuery.From.ID == int(adminID) {
 					err = handleInlineQueryAdmin(bot, update, st)
 					if err != nil {
 						log.Printf("could not handle inline query: %v", err)
@@ -173,7 +223,6 @@ func run() error {
 				if err != nil {
 					log.Printf("could not handle callback query: %v", err)
 				}
-
 				continue
 			}
 

@@ -6,7 +6,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/kyokomi/emoji"
 )
 
@@ -187,7 +187,13 @@ func buildPollListing(p *poll, st Store) (listing string) {
 		}
 		listing += "\n"
 	}
-	listing += emoji.Sprint(fmt.Sprintf("\n%d :busts_in_silhouette:\n", len(polledUsers)))
+	listing += emoji.Sprint(fmt.Sprintf("\n%d :busts_in_silhouette: ", len(polledUsers)))
+	d, err := c.Encrypt(fmt.Sprintf("%d", p.ID))
+	if err != nil {
+		log.Printf("could not decrypt pollid %d: %v\n", p.ID, err)
+	}
+	listing += fmt.Sprintf("pollrbot.com/p/%s", d)
+	// listing += fmt.Sprintf("<a href=\"https://pollrbot.com/p/%s\">view online</a>", d)
 	return listing
 }
 

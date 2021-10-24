@@ -6,11 +6,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 type sqlStore struct {
 	db *sql.DB
+	// mutex sync.RWMutex
 }
 
 func (st *sqlStore) Close() {
@@ -92,11 +93,15 @@ func newSQLStore(databaseFile string) *sqlStore {
 	if _, err := st.db.Exec(schema); err != nil {
 		log.Fatalf("could not create schema: %v", err)
 	}
+	//st.db.SetMaxOpenConns(1)
 
 	return st
 }
 
 func (st *sqlStore) GetUser(userid int) (*tgbotapi.User, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	u := &tgbotapi.User{ID: userid}
 
 	row := st.db.QueryRow("SELECT FirstName, LastName, UserName FROM user WHERE ID = ?", userid)
@@ -108,6 +113,9 @@ func (st *sqlStore) GetUser(userid int) (*tgbotapi.User, error) {
 }
 
 func (st *sqlStore) GetPoll(pollid int) (*poll, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	p := &poll{ID: pollid}
 	var err error
 	row := st.db.QueryRow("SELECT UserID, Question, Inactive, Type FROM poll WHERE ID = ?", pollid)
@@ -129,6 +137,9 @@ func (st *sqlStore) GetPoll(pollid int) (*poll, error) {
 }
 
 func (st *sqlStore) GetPollNewer(pollid int, userid int) (*poll, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	p := &poll{}
 	var err error
 	row := st.db.QueryRow("SELECT UserID, ID, Question, Inactive, Type FROM poll WHERE ID > ? AND UserID = ? ORDER BY ID ASC LIMIT 1", pollid, userid)
@@ -150,6 +161,9 @@ func (st *sqlStore) GetPollNewer(pollid int, userid int) (*poll, error) {
 }
 
 func (st *sqlStore) GetPollOlder(pollid int, userid int) (*poll, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	p := &poll{}
 	var err error
 	row := st.db.QueryRow("SELECT UserID, ID, Question, Inactive, Type FROM poll WHERE ID < ? AND UserID = ? ORDER BY ID DESC LIMIT 1", pollid, userid)
@@ -171,6 +185,9 @@ func (st *sqlStore) GetPollOlder(pollid int, userid int) (*poll, error) {
 }
 
 func (st *sqlStore) GetState(userid int) (state int, pollid int, err error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	row := st.db.QueryRow("SELECT state, pollid FROM dialog WHERE UserID = ?", userid)
 	if err := row.Scan(&state, &pollid); err != nil {
 		return state, pollid, fmt.Errorf("could not scan state from row: %v", err)
@@ -195,6 +212,9 @@ func (st *sqlStore) SaveState(userid int, pollid int, state int) (err error) {
 }
 
 func (st *sqlStore) GetPollsByUser(userid int) ([]*poll, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	polls := make([]*poll, 0)
 	var err error
 
@@ -224,6 +244,9 @@ func (st *sqlStore) GetPollsByUser(userid int) ([]*poll, error) {
 }
 
 func (st *sqlStore) GetPollID(messageid int) (int, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	var pollid int
 
 	rows, err := st.db.Query("SELECT PollID FROM pollmsg WHERE MessageID = ?", messageid)
@@ -247,6 +270,9 @@ type pollident struct {
 }
 
 func (st *sqlStore) GetAllPollMsg(pollid int) ([]pollident, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	msgs := make([]pollident, 0)
 
 	rows, err := st.db.Query("SELECT MessageID, ChatID FROM pollmsg WHERE PollID = ?", pollid)
@@ -266,6 +292,9 @@ func (st *sqlStore) GetAllPollMsg(pollid int) ([]pollident, error) {
 }
 
 func (st *sqlStore) GetAllPollInlineMsg(pollid int) ([]pollident, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	msgs := make([]pollident, 0)
 
 	rows, err := st.db.Query("SELECT InlineMessageID FROM pollinlinemsg WHERE PollID = ?", pollid)
@@ -285,6 +314,8 @@ func (st *sqlStore) GetAllPollInlineMsg(pollid int) ([]pollident, error) {
 }
 
 func (st *sqlStore) GetOptions(pollid int) ([]option, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
 
 	options := make([]option, 0)
 
@@ -305,6 +336,9 @@ func (st *sqlStore) GetOptions(pollid int) ([]option, error) {
 }
 
 func (st *sqlStore) GetAnswers(pollid int) ([]answer, error) {
+	// st.mutex.RLock()
+	// defer st.mutex.RUnlock()
+
 	answers := make([]answer, 0)
 
 	rows, err := st.db.Query("SELECT ID, PollID, OptionID, UserID FROM answer WHERE PollID = ?", pollid)
@@ -324,6 +358,9 @@ func (st *sqlStore) GetAnswers(pollid int) ([]answer, error) {
 }
 
 func (st *sqlStore) SaveAnswer(p *poll, a answer) (unvoted bool, err error) {
+	// st.mutex.Lock()
+	// defer st.mutex.Unlock()
+
 	tx, err := st.db.Begin()
 	if err != nil {
 		return false, fmt.Errorf("could not begin database transaction: %v", err)
@@ -444,6 +481,9 @@ func (st *sqlStore) SaveAnswer(p *poll, a answer) (unvoted bool, err error) {
 }
 
 func (st *sqlStore) AddMsgToPoll(pollid int, messageid int, chatid int64) error {
+	// st.mutex.Lock()
+	// defer st.mutex.Unlock()
+
 	tx, err := st.db.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin database transaction: %v", err)
@@ -473,6 +513,9 @@ func (st *sqlStore) AddMsgToPoll(pollid int, messageid int, chatid int64) error 
 }
 
 func (st *sqlStore) AddInlineMsgToPoll(pollid int, inlinemessageid string) error {
+	// st.mutex.Lock()
+	// defer st.mutex.Unlock()
+
 	tx, err := st.db.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin database transaction: %v", err)
@@ -503,6 +546,9 @@ func (st *sqlStore) AddInlineMsgToPoll(pollid int, inlinemessageid string) error
 }
 
 func (st *sqlStore) RemoveInlineMsg(inlinemessageid string) error {
+	// st.mutex.Lock()
+	// defer st.mutex.Unlock()
+
 	tx, err := st.db.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin database transaction: %v", err)
@@ -535,6 +581,8 @@ func (st *sqlStore) RemoveInlineMsg(inlinemessageid string) error {
 func (st *sqlStore) SaveOptions(options []option) error {
 	// option gets passed by value as we only change id numbers
 	// and do not append new elements this should be fine
+	// st.mutex.Lock()
+	// defer st.mutex.Unlock()
 
 	tx, err := st.db.Begin()
 	if err != nil {
@@ -572,6 +620,9 @@ func (st *sqlStore) SaveOptions(options []option) error {
 }
 
 func (st *sqlStore) SaveUser(u *tgbotapi.User) error {
+	// st.mutex.Lock()
+	// defer st.mutex.Unlock()
+
 	tx, err := st.db.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin database transaction: %v", err)
@@ -624,6 +675,9 @@ func (st *sqlStore) SaveUser(u *tgbotapi.User) error {
 }
 
 func (st *sqlStore) SavePoll(p *poll) (id int, err error) {
+	// st.mutex.Lock()
+	// defer st.mutex.Unlock()
+
 	tx, err := st.db.Begin()
 	if err != nil {
 		return int(id), fmt.Errorf("could not begin database transaction: %v", err)
